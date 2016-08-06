@@ -7,11 +7,19 @@ import _ from 'lodash'
 import DatePicker from 'react-datepicker'
 import moment from 'moment'
 import Fuse from 'fuse.js'
-import TextHighlight from './TextHighlight'
+import exiftool from 'node-exiftool'
 
+import TextHighlight from './TextHighlight'
 import { rhythm } from '../utils/typography'
 
 require('react-datepicker/dist/react-datepicker.css')
+
+const ep = new exiftool.ExiftoolProcess('/usr/local/bin/exiftool')
+ep.open()
+.then((pid) => {
+  console.log('Started exiftool process %s', pid)
+})
+.catch((err) => console.log('error starting exiftool process', err))
 
 const directory = '/Users/kylemathews/programs/gary-mathews/pages/chapters/'
 
@@ -28,6 +36,8 @@ const fuseOptions = {
   ],
 }
 
+const exifDateFormat = 'YYYY:MM:DD HH:mm:ssZZ'
+
 export default class Home extends Component {
   constructor () {
     super()
@@ -39,8 +49,13 @@ export default class Home extends Component {
       },
       query: '',
       search: new Fuse([], fuseOptions),
+      metadata: {
+        Caption: '',
+        Date: moment().format(exifDateFormat),
+      },
     }
   }
+
   componentDidMount () {
     glob(`${directory}**`, { nodir: true }, (err, files) => {
       let mappedFiles = files.map((filePath) => {
@@ -65,21 +80,33 @@ export default class Home extends Component {
     })
   }
   render () {
-    console.log(this.state.metadata)
+    console.log(this.state)
+    // Search through files if query is set.
     let filteredFiles
     if (this.state.query !== '') {
       filteredFiles = this.state.search.search(this.state.query)
     } else {
       filteredFiles = this.state.files
     }
+
+    // Create file elements for list.
     const fileItems = filteredFiles.map((file) => (
       <div
         onClick={() => {
           this.setState({
             choosenFile: file,
-            metadata: {},
           })
-          exif(file.absolute, (err, metadata) => this.setState({ metadata }))
+          //exif(file.absolute, (err, metadata) => this.setState({ metadata }))
+          ep.readMetadata(file.absolute).then((res) => {
+            console.log('ep metadata', res)
+            // Clean up metadata
+            const metadata = {
+              Caption: _.get(res, 'data[0].Caption', ''),
+              Date: _.get(res, 'data[0].Date')
+            }
+            console.log(metadata)
+            this.setState({ metadata })
+          })
         }}
         style={{
           cursor: 'pointer',
@@ -92,10 +119,11 @@ export default class Home extends Component {
         />
       </div>)
     )
+
     return (
       <div>
         <Grid
-          col={4}
+          col={3}
           style={{
             padding: rhythm(1),
             paddingRight: `calc(${rhythm(1)} - 1px)`,
@@ -117,12 +145,13 @@ export default class Home extends Component {
           {fileItems}
         </Grid>
         <Grid
-          col={4}
+          col={5}
           style={{
             borderRight: '1px solid gray',
             height: '100vh',
             padding: rhythm(1),
             paddingRight: `calc(${rhythm(1)} - 1px)`,
+            overflow: 'auto',
           }}
         >
           <h1>Preview</h1>
@@ -138,9 +167,10 @@ export default class Home extends Component {
           style={{
             height: '100vh',
             padding: rhythm(1),
+            overflow: 'auto',
           }}
         >
-          <h1>Edit MetadataPreview</h1>
+          <h1>Edit Metadata</h1>
           <label
             style={{
               display: 'block',
@@ -154,7 +184,14 @@ export default class Home extends Component {
             style={{
               width: '100%',
             }}
-            value={_.get(this, 'state.metadata.Caption', '')}
+            value={this.state.metadata.Caption}
+            onChange={(e) => {
+              console.log(e, e.target.value)
+              const metadataClone = this.state.metadata
+              this.setState({
+                metadata: _.set(metadataClone, 'Caption', e.target.value, ''),
+              })
+            }}
           />
           <label
             style={{
@@ -169,9 +206,40 @@ export default class Home extends Component {
             style={{
               width: '100%',
             }}
-            selected={moment(_.get(this, 'state.metadata.Date', ''), 'YYYY:MM:DD HH:mm:ssZZ')}
-            onChange={(value) => console.log(value)}
+            selected={moment(this.state.metadata.Date, exifDateFormat)}
+            onChange={(value) => {
+              value.add(12, 'hours') // datepicker puts out date at midnight
+              // in Greenwich Mean Time, this ensures we're somewhere in the middle of the day
+              // for any events that happen in the US/South America.
+              console.log('onChange datepicker', value, value.format(exifDateFormat))
+              const metadataClone = this.state.metadata
+              this.setState({
+                metadata: _.set(metadataClone, 'Date', value.format(exifDateFormat)),
+              })
+            }}
           />
+          <br />
+          <br />
+          <button
+            onClick={() => {
+              const args = []
+              console.log(this.state.metadata)
+              _.forEach(this.state.metadata, (v, k) => {
+                switch (k) {
+                  default:
+                    args.push(`${k}=${v}`)
+                }
+              })
+              console.log(args)
+              //const toWrite = this.state.metadata.map((k,v) => console.log(k,v))
+              ep._executeCommand(this.state.choosenFile.absolute, args).then((res) => {
+                console.log('ep write response', res)
+              })
+
+            }}
+          >
+            Save
+          </button>
         </Grid>
       </div>
     )
