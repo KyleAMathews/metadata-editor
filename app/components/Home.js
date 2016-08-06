@@ -44,8 +44,8 @@ export default class Home extends Component {
     this.state = {
       files: [],
       choosenFile: {
-        relative: 'placeholder',
-        absolute: 'http://techmeme.com/160805/i14.jpg',
+        relative: '',
+        absolute: '',
       },
       query: '',
       search: new Fuse([], fuseOptions),
@@ -53,6 +53,7 @@ export default class Home extends Component {
         Caption: '',
         Date: moment().format(exifDateFormat),
       },
+      message: '',
     }
   }
 
@@ -95,6 +96,7 @@ export default class Home extends Component {
         onClick={() => {
           this.setState({
             choosenFile: file,
+            message: null,
           })
           //exif(file.absolute, (err, metadata) => this.setState({ metadata }))
           ep.readMetadata(file.absolute).then((res) => {
@@ -171,6 +173,22 @@ export default class Home extends Component {
           }}
         >
           <h1>Edit Metadata</h1>
+          {(() => {
+            if (this.state.message) {
+              return (
+                <div
+                  style={{
+                    marginBottom: rhythm(1),
+                    padding: rhythm(1),
+                    background: 'lightgreen',
+                  }}
+                >
+                  {this.state.message}
+                </div>
+              )
+            }
+            return null
+          })()}
           <label
             style={{
               display: 'block',
@@ -206,6 +224,7 @@ export default class Home extends Component {
             style={{
               width: '100%',
             }}
+            dateFormat="YYYY/MM/DD"
             selected={moment(this.state.metadata.Date, exifDateFormat)}
             onChange={(value) => {
               value.add(12, 'hours') // datepicker puts out date at midnight
@@ -234,6 +253,9 @@ export default class Home extends Component {
               //const toWrite = this.state.metadata.map((k,v) => console.log(k,v))
               ep._executeCommand(this.state.choosenFile.absolute, args).then((res) => {
                 console.log('ep write response', res)
+                if (res.error === '1 image files updated') {
+                  this.setState({ message: 'Metadata saved' })
+                }
               })
 
             }}
