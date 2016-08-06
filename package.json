@@ -116,6 +116,7 @@
     "react-router": "^2.6.0",
     "react-router-redux": "^4.0.5",
     "react-text-highlight": "git+https://github.com/KyleAMathews/react-text-highlight.git#patch-1",
+    "react-textarea-autosize": "^4.0.4",
     "redux": "^3.5.2",
     "redux-thunk": "^2.1.0",
     "reflexbox": "^2.1.0",

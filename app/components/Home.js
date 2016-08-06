@@ -2,12 +2,12 @@ import React, { Component } from 'react'
 import { Grid } from 'reflexbox'
 import glob from 'glob'
 import path from 'path'
-import exif from 'simple-exiftool'
 import _ from 'lodash'
 import DatePicker from 'react-datepicker'
 import moment from 'moment'
 import Fuse from 'fuse.js'
 import exiftool from 'node-exiftool'
+import Textarea from 'react-textarea-autosize'
 
 import TextHighlight from './TextHighlight'
 import { rhythm } from '../utils/typography'
@@ -51,6 +51,7 @@ export default class Home extends Component {
       search: new Fuse([], fuseOptions),
       metadata: {
         Caption: '',
+        Description: '',
         Date: moment().format(exifDateFormat),
       },
       message: '',
@@ -104,7 +105,8 @@ export default class Home extends Component {
             // Clean up metadata
             const metadata = {
               Caption: _.get(res, 'data[0].Caption', ''),
-              Date: _.get(res, 'data[0].Date')
+              Description: _.get(res, 'data[0].Description', '').replace(/<br \/>/g, '\n'),
+              Date: _.get(res, 'data[0].Date'),
             }
             console.log(metadata)
             this.setState({ metadata })
@@ -112,7 +114,13 @@ export default class Home extends Component {
         }}
         style={{
           cursor: 'pointer',
-          marginBottom: rhythm(1/4),
+          paddingTop: rhythm(1/4),
+          paddingBottom: rhythm(1/4),
+          paddingLeft: rhythm(1/2),
+          paddingRight: rhythm(1/2),
+          marginLeft: rhythm(-1/2),
+          marginRight: rhythm(-1/2),
+          background: file === this.state.choosenFile ? 'pink' : 'white',
         }}
       >
         <TextHighlight
@@ -196,6 +204,32 @@ export default class Home extends Component {
               fontWeight: 'bold',
             }}
           >
+            Date
+          </label>
+          <DatePicker
+            style={{
+              width: '100%',
+            }}
+            dateFormat="YYYY/MM/DD"
+            selected={moment(this.state.metadata.Date, exifDateFormat)}
+            onChange={(value) => {
+              value.add(12, 'hours') // datepicker puts out date at midnight
+              // in Greenwich Mean Time, this ensures we're somewhere in the middle of the day
+              // for any events that happen in the US/South America.
+              console.log('onChange datepicker', value, value.format(exifDateFormat))
+              const metadataClone = this.state.metadata
+              this.setState({
+                metadata: _.set(metadataClone, 'Date', value.format(exifDateFormat)),
+              })
+            }}
+          />
+          <label
+            style={{
+              display: 'block',
+              marginTop: rhythm(1/4),
+              fontWeight: 'bold',
+            }}
+          >
             Caption
           </label>
           <textarea
@@ -218,22 +252,18 @@ export default class Home extends Component {
               fontWeight: 'bold',
             }}
           >
-            Date
+            Description
           </label>
-          <DatePicker
+          <Textarea
             style={{
               width: '100%',
             }}
-            dateFormat="YYYY/MM/DD"
-            selected={moment(this.state.metadata.Date, exifDateFormat)}
-            onChange={(value) => {
-              value.add(12, 'hours') // datepicker puts out date at midnight
-              // in Greenwich Mean Time, this ensures we're somewhere in the middle of the day
-              // for any events that happen in the US/South America.
-              console.log('onChange datepicker', value, value.format(exifDateFormat))
+            value={this.state.metadata.Description}
+            onChange={(e) => {
+              console.log(e, e.target.value)
               const metadataClone = this.state.metadata
               this.setState({
-                metadata: _.set(metadataClone, 'Date', value.format(exifDateFormat)),
+                metadata: _.set(metadataClone, 'Description', e.target.value, ''),
               })
             }}
           />
@@ -242,22 +272,21 @@ export default class Home extends Component {
           <button
             onClick={() => {
               const args = []
-              console.log(this.state.metadata)
               _.forEach(this.state.metadata, (v, k) => {
                 switch (k) {
+                  case 'Description':
+                    args.push(`${k}=${v.replace(/(?:\r\n|\r|\n)/g, '<br />')}`)
+                    break
                   default:
                     args.push(`${k}=${v}`)
                 }
               })
-              console.log(args)
-              //const toWrite = this.state.metadata.map((k,v) => console.log(k,v))
               ep._executeCommand(this.state.choosenFile.absolute, args).then((res) => {
                 console.log('ep write response', res)
                 if (res.error === '1 image files updated') {
                   this.setState({ message: 'Metadata saved' })
                 }
               })
-
             }}
           >
             Save
