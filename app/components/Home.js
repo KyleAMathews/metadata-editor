@@ -51,6 +51,7 @@ export default class Home extends Component {
       search: new Fuse([], fuseOptions),
       metadata: {
         Caption: '',
+        Type: '',
         Description: '',
         Date: moment().format(exifDateFormat),
       },
@@ -105,6 +106,7 @@ export default class Home extends Component {
             // Clean up metadata
             const metadata = {
               Caption: _.get(res, 'data[0].Caption', ''),
+              Type: _.get(res, 'data[0].Type', ''),
               Description: _.get(res, 'data[0].Description', '').replace(/<br \/>/g, '\n'),
               Date: _.get(res, 'data[0].Date'),
             }
@@ -230,9 +232,35 @@ export default class Home extends Component {
               fontWeight: 'bold',
             }}
           >
+            Content Type
+          </label>
+          <select
+            style={{
+              width: '100%',
+            }}
+            value={this.state.metadata.Type}
+            onChange={(e) => {
+              console.log(e, e.target.value)
+              const metadataClone = this.state.metadata
+              this.setState({
+                metadata: _.set(metadataClone, 'Type', e.target.value, ''),
+              })
+            }}
+          >
+            <option value="" />
+            <option value="Letter">Letter</option>
+            <option value="Document">Document</option>
+          </select>
+          <label
+            style={{
+              display: 'block',
+              marginTop: rhythm(1/4),
+              fontWeight: 'bold',
+            }}
+          >
             Caption
           </label>
-          <textarea
+          <Textarea
             style={{
               width: '100%',
             }}
