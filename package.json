@@ -18,6 +18,7 @@
     "package": "cross-env NODE_ENV=production node -r babel-register package.js",
     "package-all": "npm run package -- --all",
     "postinstall": "node node_modules/fbjs-scripts/node/check-dev-engines.js package.json",
+    "release": "node node_modules/electron-release/cli --app release/darwin-x64/GraphiQL-darwin-x64/GraphiQL.app --token `echo ${GITHUB_TOKEN}`",
     "dev": "concurrently --kill-others \"npm run hot-server\" \"npm run start-hot\""
   },
   "bin": {
@@ -73,6 +74,7 @@
     "electron-packager": "^7.3.0",
     "electron-prebuilt": "^1.2.8",
     "electron-rebuild": "^1.1.5",
+    "electron-release": "^2.2.0",
     "eslint": "^3.2.2",
     "eslint-config-airbnb": "^10.0.0",
     "eslint-import-resolver-webpack": "^0.4.0",
