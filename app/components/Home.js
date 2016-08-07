@@ -299,7 +299,7 @@ export default class Home extends Component {
           <br />
           <button
             onClick={() => {
-              const args = []
+              const args = ['overwrite_original']
               _.forEach(this.state.metadata, (v, k) => {
                 switch (k) {
                   case 'Description':
