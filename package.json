@@ -18,7 +18,7 @@
     "package": "cross-env NODE_ENV=production node -r babel-register package.js",
     "package-all": "npm run package -- --all",
     "postinstall": "node node_modules/fbjs-scripts/node/check-dev-engines.js package.json",
-    "release": "node node_modules/electron-release/cli --app release/darwin-x64/GraphiQL-darwin-x64/GraphiQL.app --token `echo ${GITHUB_TOKEN}`",
+    "release": "node node_modules/electron-release/cli --repo kyleamathews/metadata-editor --app release/darwin-x64/ElectronReact-darwin-x64/ElectronReact.app --token `echo ${GITHUB_TOKEN}`",
     "dev": "concurrently --kill-others \"npm run hot-server\" \"npm run start-hot\""
   },
   "bin": {
@@ -26,7 +26,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/chentsulin/electron-react-boilerplate.git"
+    "url": "git@github.com:KyleAMathews/metadata-editor.git"
   },
   "author": {
     "name": "C. T. Lin",
