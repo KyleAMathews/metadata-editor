@@ -14,6 +14,8 @@ import { rhythm } from '../utils/typography'
 
 require('react-datepicker/dist/react-datepicker.css')
 
+const config = require('dot-file-config')('.metadata-editor')
+
 const ep = new exiftool.ExiftoolProcess('/usr/local/bin/exiftool')
 ep.open()
 .then((pid) => {
@@ -21,7 +23,7 @@ ep.open()
 })
 .catch((err) => console.log('error starting exiftool process', err))
 
-const directory = '/Users/kylemathews/programs/gary-mathews/pages/chapters/'
+const directory = config.data.directory
 
 const fuseOptions = {
   caseSensitive: false,
