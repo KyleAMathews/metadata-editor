@@ -8,6 +8,7 @@ import moment from 'moment'
 import Fuse from 'fuse.js'
 import exiftool from 'node-exiftool'
 import Textarea from 'react-textarea-autosize'
+import chokidar from 'chokidar'
 
 import TextHighlight from './TextHighlight'
 import { rhythm } from '../utils/typography'
@@ -45,6 +46,7 @@ export default class Home extends Component {
     super()
     this.state = {
       files: [],
+      choosenFileDirty: false,
       choosenFile: {
         relative: '',
         absolute: '',
@@ -62,27 +64,48 @@ export default class Home extends Component {
   }
 
   componentDidMount () {
-    glob(`${directory}**`, { nodir: true }, (err, files) => {
-      let mappedFiles = files.map((filePath) => {
-        const relativePath = path.relative(directory, filePath)
-        if (relativePath === '..') {
-          return {
-            relative: '',
-            absolute: filePath,
+    const runGlob = () => {
+      glob(`${directory}**`, {
+        nodir: true,
+        ignore: ['**/*.md', '**/*.docx'],
+      }, (err, files) => {
+        console.log('globbing')
+        let mappedFiles = files.map((filePath) => {
+          const relativePath = path.relative(directory, filePath)
+          if (relativePath === '..') {
+            return {
+              relative: '',
+              absolute: filePath,
+            }
+          } else {
+            return {
+              relative: relativePath,
+              absolute: filePath,
+            }
           }
-        } else {
-          return {
-            relative: relativePath,
-            absolute: filePath,
-          }
-        }
+        })
+        mappedFiles = mappedFiles.filter((file) => file.relative !== '')
+        this.setState({
+          files: mappedFiles,
+          search: new Fuse(mappedFiles, fuseOptions),
+        })
       })
-      mappedFiles = mappedFiles.filter((file) => file.relative !== '')
-      this.setState({
-        files: mappedFiles,
-        search: new Fuse(mappedFiles, fuseOptions)
-      })
+    }
+
+    const debouncedGlob = _.debounce(runGlob, 250)
+    debouncedGlob()
+
+    // Setup watcher for directory changes.
+    const watcher = chokidar.watch(directory, {
+      ignored: /[\/\\]\./,
+      persistent: true,
     })
+
+    // Add event listeners.
+    watcher
+      .on('add', () => debouncedGlob())
+      .on('change', () => debouncedGlob())
+      .on('unlink', () => debouncedGlob())
   }
   render () {
     console.log(this.state)
@@ -98,23 +121,30 @@ export default class Home extends Component {
     const fileItems = filteredFiles.map((file) => (
       <div
         onClick={() => {
-          this.setState({
-            choosenFile: file,
-            message: null,
-          })
-          //exif(file.absolute, (err, metadata) => this.setState({ metadata }))
-          ep.readMetadata(file.absolute).then((res) => {
-            console.log('ep metadata', res)
-            // Clean up metadata
-            const metadata = {
-              Caption: _.get(res, 'data[0].Caption', ''),
-              Type: _.get(res, 'data[0].Type', ''),
-              Description: _.get(res, 'data[0].Description', '').replace(/<br \/>/g, '\n'),
-              Date: _.get(res, 'data[0].Date'),
-            }
-            console.log(metadata)
-            this.setState({ metadata })
-          })
+          let leave = true
+          if (this.state.choosenFileDirty) {
+            leave = confirm('You have unsaved changes, do you want to leave?')
+          }
+          if (leave) {
+            this.setState({
+              choosenFile: file,
+              choosenFileDirty: false,
+              message: null,
+            })
+            // exif(file.absolute, (err, metadata) => this.setState({ metadata }))
+            ep.readMetadata(file.absolute).then((res) => {
+              console.log('ep metadata', res)
+              // Clean up metadata
+              const metadata = {
+                Caption: _.get(res, 'data[0].Caption', ''),
+                Type: _.get(res, 'data[0].Type', ''),
+                Description: _.get(res, 'data[0].Description', '').replace(/<br \/>/g, '\n'),
+                Date: _.get(res, 'data[0].Date'),
+              }
+              console.log(metadata)
+              this.setState({ metadata })
+            })
+          }
         }}
         style={{
           cursor: 'pointer',
@@ -214,7 +244,7 @@ export default class Home extends Component {
             style={{
               width: '100%',
             }}
-            dateFormat="YYYY/MM/DD"
+            dateFormat="YYYY-MM-DD"
             selected={moment(this.state.metadata.Date, exifDateFormat)}
             onChange={(value) => {
               value.add(12, 'hours') // datepicker puts out date at midnight
@@ -224,6 +254,7 @@ export default class Home extends Component {
               const metadataClone = this.state.metadata
               this.setState({
                 metadata: _.set(metadataClone, 'Date', value.format(exifDateFormat)),
+                choosenFileDirty: true,
               })
             }}
           />
@@ -246,12 +277,14 @@ export default class Home extends Component {
               const metadataClone = this.state.metadata
               this.setState({
                 metadata: _.set(metadataClone, 'Type', e.target.value, ''),
+                choosenFileDirty: true,
               })
             }}
           >
             <option value="" />
             <option value="Letter">Letter</option>
             <option value="Document">Document</option>
+            <option value="Photo">Photo</option>
           </select>
           <label
             style={{
@@ -272,6 +305,7 @@ export default class Home extends Component {
               const metadataClone = this.state.metadata
               this.setState({
                 metadata: _.set(metadataClone, 'Caption', e.target.value, ''),
+                choosenFileDirty: true,
               })
             }}
           />
@@ -294,6 +328,7 @@ export default class Home extends Component {
               const metadataClone = this.state.metadata
               this.setState({
                 metadata: _.set(metadataClone, 'Description', e.target.value, ''),
+                choosenFileDirty: true,
               })
             }}
           />
@@ -314,7 +349,14 @@ export default class Home extends Component {
               ep._executeCommand(this.state.choosenFile.absolute, args).then((res) => {
                 console.log('ep write response', res)
                 if (res.error === '1 image files updated') {
-                  this.setState({ message: 'Metadata saved' })
+                  this.setState({
+                    message: 'Metadata saved',
+                    choosenFileDirty: false,
+                  })
+                } else {
+                  this.setState({
+                    message: JSON.stringify(res),
+                  })
                 }
               })
             }}

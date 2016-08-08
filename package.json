@@ -1,6 +1,6 @@
 {
   "name": "electron-react-boilerplate",
-  "productName": "ElectronReact",
+  "productName": "Metadata-Editor",
   "version": "0.10.2",
   "description": "Electron application boilerplate based on React, React Router, Webpack, React Hot Loader for rapid application development",
   "main": "main.js",
@@ -100,6 +100,7 @@
     "webpack-merge": "^0.14.0"
   },
   "dependencies": {
+    "chokidar": "^1.6.0",
     "css-modules-require-hook": "^4.0.1",
     "dot-file-config": "^0.6.1",
     "electron-debug": "^1.0.1",

@@ -28,5 +28,6 @@ export default {
     // (mysql, mongodb, and so on..)
     'fs',
     'glob',
+    'chokidar',
   ],
 }
