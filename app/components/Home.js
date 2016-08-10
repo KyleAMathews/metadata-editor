@@ -342,6 +342,11 @@ export default class Home extends Component {
                   case 'Description':
                     args.push(`${k}=${v.replace(/(?:\r\n|\r|\n)/g, '<br />')}`)
                     break
+                  case 'Date':
+                    if (v) {
+                      args.push(`${k}=${v}`)
+                    }
+                    break
                   default:
                     args.push(`${k}=${v}`)
                 }
